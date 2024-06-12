@@ -1,12 +1,3 @@
-"""
-Script to convert CAAML snow profiles into INI files allocated to SMP PNT files.
-This serves as a primary step to prepare training data for the SNOWDRAGON script by comparing manual snow pit data
-to nearby collected SMP measuremnts.
-SNOWADRAGON cannot read CAAML files, therefore the needed information has to be transfered to the existing INI file.
-
-authors: Tamara and Felix, LWD Tirol
-"""
-
 import numpy as np
 from pathlib import Path
 import snowmicropyn
@@ -24,7 +15,7 @@ matching = 'scaling'
 #matching = 'cutting'
 subdir_csv = "/data/"
 
-parentdir = Path(__file__).parent.parent.as_posix()
+parentdir = Path(__file__).parent.as_posix()
 
 def caaml_filename_allocator (pnt_filename, pnt_caaml_allocation_filename):
     '''
@@ -41,41 +32,41 @@ def caaml_filename_allocator (pnt_filename, pnt_caaml_allocation_filename):
 pnt_name_list = np.loadtxt(parentdir + subdir_csv + pnt_caaml_allocation_filename, skiprows=1, delimiter=';', dtype='str')[:,0].tolist()
 
 for pnt_filename in pnt_name_list:
-    
+
     caaml_filename = caaml_filename_allocator(pnt_filename, pnt_caaml_allocation_filename)
     subdir_pnt = "/data/smp_pnt_files_scaled/"
     #subdir_pnt = "/data/smp_pnt_files_cutted/"
-    
+
     print(parentdir + subdir_pnt + pnt_filename)
     p = snowmicropyn.Profile.load(parentdir + subdir_pnt + pnt_filename)
-    
+
     markers = p.markers
     if markers:
         surface = p.marker('surface')
         ground = p.marker('ground')
-    
+
     else:
         surface = p.detect_surface()
         ground = p.detect_ground()
         p.save()
-    
+
     subdir_caaml = '/data/caaml_files/'
     caaml_layers = ca.get_layers(parentdir + subdir_caaml + caaml_filename)
-    
+
     ini_depth = ground - surface
     caaml_top = caaml_layers[0].dtop*10
     caaml_depth = (caaml_layers[0].dtop - caaml_layers[-1].dbot)*10
-    
+
     # factor to scale the depth of the CAAML profile to that of the SMP measurement
     #TODO - at a later point add option without scaling, insteadt cut off CAAMML
     correction_factor = ini_depth / caaml_depth
-    
+
     if matching == "cutting":        
         if ini_depth >= caaml_depth:
             ground = surface + caaml_depth
             p.remove_marker('ground')
             p.set_marker('ground', ground)
-    
+
     i = 0
     for layer in caaml_layers:
         #number added to graintype is necessary to allow multiple layers of same graintype

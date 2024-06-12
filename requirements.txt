@@ -1,0 +1,6 @@
+GitPython
+matplotlib
+numpy
+pandas
+snowmicropyn
+snowpyt
