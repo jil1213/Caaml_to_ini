@@ -3,4 +3,4 @@ input_data: #Paths of the input data
     pnt_path: C:/Users/jille/Documents/LWD/Caaml_to_ini/data/smp_pnt_files_scaled/
     caaml_path: C:/Users/jille/Documents/LWD/Caaml_to_ini/data/caaml_files/
 
-matching: cutting #you can also choose: scaling
+scaling: False
