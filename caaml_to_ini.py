@@ -20,8 +20,11 @@ def caaml_filename_allocator (pnt_filename, pnt_caaml_allocation):
     '''
     This function finds the allocating caaml filename to the given pnt filename
     in the given csv table.
-    pnt_filename(str): name of the pnt file
-    pnt_caaml_allocation(str): 
+    Parameters:
+        pnt_filename(str): name of the pnt file
+        pnt_caaml_allocation(str): path to csv table
+    Returns: 
+        str: name of the caaml file
     '''
     allocation = np.loadtxt(pnt_caaml_allocation, skiprows=1, delimiter=';', dtype='str')
     itemindex = np.where(allocation == pnt_filename)
@@ -36,15 +39,17 @@ def caaml_to_ini(pnt_caaml_allocation, pnt_path, caaml_path, scaling=False):
     and matches the layers of the CAAML profile to the SMP profile.
     The matching can be done by cutting the CAAML profile at the depth of the SMP profile
     or by scaling the depth of the CAAML profile to the depth of the SMP profile.
-    pnt_caaml_allocation(str): path to the csv table with the allocation of the SMP profiles to the CAAML profiles
-    pnt_path(str): path to the SMP profiles
-    caaml_path(str): path to the CAAML profiles
-    scaling(bool): Default False(Profiles are getting cutted), if True(profiles are getting scaled)
+    Calculatings are done in mm, so CAAML imports (givenn in cm) are multiplied by 10.
+    Parameters:
+        pnt_caaml_allocation(str): path to the csv table with the allocation of the SMP profiles to the CAAML profiles
+        pnt_path(str): path to the SMP profiles
+        caaml_path(str): path to the CAAML profiles
+        scaling(bool): Default False(=cutting)
     '''
     pnt_name_list = np.loadtxt(pnt_caaml_allocation, skiprows=1, delimiter=';', dtype='str')[:,0].tolist()
 
     for pnt_filename in pnt_name_list:
-
+        # Determine the corresponding CAAML filename
         caaml_filename = caaml_filename_allocator(pnt_filename, pnt_caaml_allocation)
 
         print(pnt_filename)
@@ -64,38 +69,37 @@ def caaml_to_ini(pnt_caaml_allocation, pnt_path, caaml_path, scaling=False):
 
         ini_depth = ground - surface
         caaml_top = caaml_layers[0].dtop*10
-        caaml_depth = (caaml_layers[0].dtop - caaml_layers[-1].dbot)*10 #warum *10
+        caaml_depth = (caaml_layers[0].dtop - caaml_layers[-1].dbot)*10
 
         # factor to scale the depth of the CAAML profile to that of the SMP measurement
-        #TODO - at a later point add option without scaling, insteadt cut off CAAMML
         correction_factor = ini_depth / caaml_depth
 
-        if scaling:
-            if ini_depth >= caaml_depth:
-                ground = surface + caaml_depth
-                current_profile.remove_marker('ground')
-                current_profile.set_marker('ground', ground)
+        if scaling and ini_depth >= caaml_depth:
+            ground = surface + caaml_depth
+            current_profile.remove_marker('ground')
+            current_profile.set_marker('ground', ground)
 
-        i = 0
-        for layer in caaml_layers:
-            #number added to graintype is necessary to allow multiple layers of same graintype
-            #numbers are deleted later on in the SNOWDRAGON package
+
+        for i, layer in enumerate(caaml_layers):
+            # number added to graintype is necessary to allow multiple layers of same graintype
+            # numbers are deleted later on in the SNOWDRAGON package
+
             graintype = layer.grain_type1 + str(i)
-            i = i + 1
+
+            # Calculate the bottom of the layer
+            layer_bottom = (caaml_top - layer.dbot * 10)
             if scaling:
-                layer_bottom = (caaml_top - layer.dbot*10)*correction_factor + surface
+                layer_bottom = layer_bottom * correction_factor + surface
+            else:
+                layer_bottom += surface
+
+            # Set the marker for the current layer
+            if not scaling and caaml_depth > ini_depth and layer_bottom >= ground:
+                current_profile.set_marker(graintype, ground)
+                break
+            else:
                 current_profile.set_marker(graintype, layer_bottom)
-                print(graintype, layer_bottom)
-            elif scaling == False:
-                layer_bottom = (caaml_top - layer.dbot*10) + surface
-                if caaml_depth > ini_depth:
-                    if layer_bottom < ground:
-                        current_profile.set_marker(graintype, layer_bottom)
-                    else:
-                        current_profile.set_marker(graintype, ground)
-                        break
-                elif ini_depth >= caaml_depth:
-                    current_profile.set_marker(graintype, layer_bottom)
+
         current_profile.save()
 
 def main():
